@@ -11,6 +11,7 @@ from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
+from PIL import Image
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
@@ -59,6 +60,14 @@ def ensure_sample_media(sample_dir: Path):
         if not path.exists():
             path.write_bytes(b"placeholder-video")
             print(f"Created placeholder media: {path}")
+
+    # Create a simple thumbnail image for each sample video so the UI can render it.
+    for video_name in ["intro", "future_oss", "contribute", "cc_explained"]:
+        thumbnail_path = sample_dir / f"{video_name}.jpg"
+        if not thumbnail_path.exists():
+            image = Image.new("RGB", (640, 360), color=(20, 120, 220))
+            image.save(thumbnail_path)
+            print(f"Created thumbnail image: {thumbnail_path}")
     return sample_dir
 
 
@@ -72,7 +81,15 @@ def create_sample_video(session, channel, title, description, video_path):
 
     try:
         video_url = storage.upload_file(str(sample_path), f"videos/{channel.id}/{sample_path.stem}.mp4")
-        thumbnail_url = storage.upload_file(str(sample_path), f"thumbnails/{channel.id}/{sample_path.stem}.jpg")
+
+        thumbnail_path = sample_path.with_suffix('.jpg')
+        if not thumbnail_path.exists():
+            thumbnail_path = sample_path.parent / f"{sample_path.stem}.jpg"
+        if not thumbnail_path.exists():
+            thumbnail_image = Image.new("RGB", (640, 360), color=(20, 120, 220))
+            thumbnail_image.save(thumbnail_path)
+
+        thumbnail_url = storage.upload_file(str(thumbnail_path), f"thumbnails/{channel.id}/{sample_path.stem}.jpg")
 
         video = Video(
             channel_id=channel.id,

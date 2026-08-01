@@ -1,6 +1,8 @@
 import os
 import streamlit as st
 import requests
+from PIL import Image
+from io import BytesIO
 
 API_BASE_URL = os.getenv("OPENSTREAM_API_BASE_URL", "http://127.0.0.1:8000")
 
@@ -18,6 +20,22 @@ def fetch_feed():
     payload = response.json()
     return payload.get("results", [])
 
+
+def render_thumbnail(thumbnail_url):
+    if not thumbnail_url:
+        return None
+
+    try:
+        response = requests.get(thumbnail_url, timeout=10)
+        response.raise_for_status()
+        image_bytes = response.content
+        image = Image.open(BytesIO(image_bytes))
+        image.load()
+        return image
+    except Exception:
+        return None
+
+
 try:
     videos = fetch_feed()
     st.session_state.videos = videos
@@ -31,8 +49,11 @@ if videos:
         with cols[index % 3]:
             st.subheader(video.get("title", "Untitled"))
             st.write(video.get("description") or "No description")
-            if video.get("thumbnail_url"):
-                st.image(video["thumbnail_url"], use_container_width=True)
+            thumbnail = render_thumbnail(video.get("thumbnail_url"))
+            if thumbnail is not None:
+                st.image(thumbnail, use_container_width=True)
+            else:
+                st.info("Thumbnail unavailable")
             st.caption(f"Channel: {video.get('channel', {}).get('name', 'Unknown')}")
             st.caption(f"Views: {video.get('view_count', 0)} • Likes: {video.get('like_count', 0)}")
             if video.get("video_url"):
