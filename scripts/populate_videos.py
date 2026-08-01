@@ -91,6 +91,11 @@ def create_sample_video(session, channel, title, description, video_path):
 
         thumbnail_url = storage.upload_file(str(thumbnail_path), f"thumbnails/{channel.id}/{sample_path.stem}.jpg")
 
+        if not video_url.startswith('http://') and not video_url.startswith('https://'):
+            video_url = f"file://{video_url}"
+        if not thumbnail_url.startswith('http://') and not thumbnail_url.startswith('https://'):
+            thumbnail_url = f"file://{thumbnail_url}"
+
         video = Video(
             channel_id=channel.id,
             title=title,

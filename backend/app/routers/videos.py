@@ -75,12 +75,28 @@ async def upload_video(
     return new_video
 
 
+@router.get("", response_model=List[VideoResponse], include_in_schema=False)
+@router.get("/", response_model=List[VideoResponse], include_in_schema=False)
+async def list_videos(db: Session = Depends(get_db)):
+    return db.query(Video).filter(Video.is_public == True).all()
+
+
 @router.get("/{video_id}", response_model=VideoResponse)
 async def get_video(video_id: int, db: Session = Depends(get_db)):
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
     return video
+
+
+@router.get("/{video_id}/play-url")
+async def get_play_url(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    signed_url = storage.generate_signed_url(video.video_url or "", expires=3600)
+    return {"url": signed_url}
 
 
 @router.post("/{video_id}/comments", response_model=CommentResponse)

@@ -13,23 +13,39 @@ st.caption("A transparent, creator-first video experience")
 if "videos" not in st.session_state:
     st.session_state.videos = []
 
-@st.cache_data(ttl=15)
-def fetch_feed():
-    response = requests.get(f"{API_BASE_URL}/feed", timeout=10)
+
+@st.cache_data(ttl=60)
+def fetch_videos():
+    response = requests.get(f"{API_BASE_URL}/videos", timeout=10)
+    response.raise_for_status()
+    return response.json()
+
+
+@st.cache_data(ttl=60)
+def get_signed_play_url(video_id):
+    response = requests.get(f"{API_BASE_URL}/videos/{video_id}/play-url", timeout=10)
     response.raise_for_status()
     payload = response.json()
-    return payload.get("results", [])
+    return payload.get("url")
 
 
 def render_thumbnail(thumbnail_url):
     if not thumbnail_url:
         return None
 
+    if thumbnail_url.startswith("http://") or thumbnail_url.startswith("https://"):
+        try:
+            response = requests.get(thumbnail_url, timeout=10)
+            response.raise_for_status()
+            image_bytes = response.content
+            image = Image.open(BytesIO(image_bytes))
+            image.load()
+            return image
+        except Exception:
+            return None
+
     try:
-        response = requests.get(thumbnail_url, timeout=10)
-        response.raise_for_status()
-        image_bytes = response.content
-        image = Image.open(BytesIO(image_bytes))
+        image = Image.open(thumbnail_url)
         image.load()
         return image
     except Exception:
@@ -37,7 +53,7 @@ def render_thumbnail(thumbnail_url):
 
 
 try:
-    videos = fetch_feed()
+    videos = fetch_videos()
     st.session_state.videos = videos
 except Exception as exc:
     st.error(f"Unable to connect to the API at {API_BASE_URL}: {exc}")
@@ -48,15 +64,14 @@ if videos:
     for index, video in enumerate(videos):
         with cols[index % 3]:
             st.subheader(video.get("title", "Untitled"))
-            st.write(video.get("description") or "No description")
             thumbnail = render_thumbnail(video.get("thumbnail_url"))
             if thumbnail is not None:
                 st.image(thumbnail, use_container_width=True)
             else:
                 st.info("Thumbnail unavailable")
-            st.caption(f"Channel: {video.get('channel', {}).get('name', 'Unknown')}")
-            st.caption(f"Views: {video.get('view_count', 0)} • Likes: {video.get('like_count', 0)}")
-            if video.get("video_url"):
-                st.link_button("Open video", video["video_url"])
+            if st.button(f"Play {video.get('title', 'video')}", key=f"play-{video.get('id')}"):
+                signed_url = get_signed_play_url(video.get("id"))
+                st.video(signed_url)
+            st.caption(f"ID: {video.get('id')}")
 else:
     st.info("No videos are available yet. Start the backend and seed content to populate the feed.")

@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Optional
+from datetime import timedelta
 
 
 class StorageService:
@@ -12,3 +13,10 @@ class StorageService:
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(Path(source_path).read_bytes())
         return str(destination)
+
+    def generate_signed_url(self, object_path: str, expires: int = 3600) -> str:
+        path = Path(object_path)
+        if not path.exists():
+            return str(path)
+
+        return str(path)
