@@ -8,6 +8,7 @@ from ..schemas import FeedResponse
 
 router = APIRouter()
 
+@router.get("", response_model=FeedResponse)
 @router.get("/feed", response_model=FeedResponse)
 async def get_feed(
     page: int = Query(1, ge=1),

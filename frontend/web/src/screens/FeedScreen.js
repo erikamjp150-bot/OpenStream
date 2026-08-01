@@ -6,11 +6,22 @@ function FeedScreen() {
   const [videos, setVideos] = useState([]);
 
   useEffect(() => {
-    api.get('/feed/feed').then((response) => {
-      setVideos(response.data.results || []);
-    }).catch(() => {
-      setVideos([]);
-    });
+    const loadFeed = async () => {
+      try {
+        const response = await api.get('/feed');
+        setVideos(response.data.results || []);
+      } catch (error) {
+        try {
+          const fallback = await fetch('http://127.0.0.1:8000/feed');
+          const data = await fallback.json();
+          setVideos(data.results || []);
+        } catch (fallbackError) {
+          setVideos([]);
+        }
+      }
+    };
+
+    loadFeed();
   }, []);
 
   return (

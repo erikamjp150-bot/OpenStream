@@ -29,6 +29,7 @@ To build a video platform that serves creators and viewers—not advertisers. Op
 - Docker and Docker Compose
 - Python 3.11+
 - Node.js 18+
+- Streamlit (optional, for the Streamlit frontend)
 
 ### Setup
 
@@ -58,6 +59,12 @@ cd ../frontend/web
 npm install
 npm start
 
+# Optional: start Streamlit frontend
+cd ../streamlit
+pip install -r requirements.txt
+streamlit run app.py --server.port 8501
+
 # Access the application
 # Web: http://localhost:3000
+# Streamlit: http://localhost:8501
 # API Docs: http://localhost:8000/docs
