@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 function LoginScreen() {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ function LoginScreen() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await axios.post('http://localhost:8000/auth/login', { email, password });
+      const response = await api.post('/auth/login', { email, password });
       localStorage.setItem('openstream_user', JSON.stringify({ username: 'demo', token: response.data.access_token }));
       navigate('/');
     } catch (e) {

@@ -7,17 +7,15 @@ Place sample video files in /sample_videos/ directory.
 import os
 import sys
 import random
+from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
-import requests
-import json
 
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
 from app.models import User, Channel, Video
 from app.config import settings
-from app.services.video_processor import VideoProcessor
 from app.services.storage import StorageService
 
 # Database connection
@@ -25,64 +23,67 @@ engine = create_engine(settings.DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def create_sample_channel(session, username, email, channel_name):
-    """Create a sample user and channel"""
+    """Create a sample user and channel if it does not already exist."""
+    existing_user = session.query(User).filter((User.username == username) | (User.email == email)).first()
+    if existing_user:
+        existing_channel = session.query(Channel).filter(Channel.user_id == existing_user.id).first()
+        if existing_channel:
+            return existing_channel
+        channel = Channel(user_id=existing_user.id, name=channel_name, description=f"Sample channel for {channel_name}", subscriber_count=random.randint(100, 10000))
+        session.add(channel)
+        session.commit()
+        return channel
+
     user = User(
         username=username,
         email=email,
-        hashed_password="dummy_hash",  # Not used for sample
+        hashed_password="dummy_hash",
         full_name=f"Sample {username}",
-        is_active=True
+        is_active=True,
     )
     session.add(user)
     session.commit()
-    
-    channel = Channel(
-        user_id=user.id,
-        name=channel_name,
-        description=f"Sample channel for {channel_name}",
-        subscriber_count=random.randint(100, 10000)
-    )
+    session.refresh(user)
+
+    channel = Channel(user_id=user.id, name=channel_name, description=f"Sample channel for {channel_name}", subscriber_count=random.randint(100, 10000))
     session.add(channel)
     session.commit()
-    
+    session.refresh(channel)
     return channel
 
+def ensure_sample_media(sample_dir: Path):
+    """Create a tiny placeholder video file when no real media exists."""
+    sample_dir.mkdir(parents=True, exist_ok=True)
+    for filename in ["intro.mp4", "future_oss.mp4", "contribute.mp4", "cc_explained.mp4"]:
+        path = sample_dir / filename
+        if not path.exists():
+            path.write_bytes(b"placeholder-video")
+            print(f"Created placeholder media: {path}")
+    return sample_dir
+
+
 def create_sample_video(session, channel, title, description, video_path):
-    """Create a sample video from a file"""
-    if not os.path.exists(video_path):
-        print(f"Video file not found: {video_path}")
-        return None
-    
-    processor = VideoProcessor()
+    """Create a sample video record using a local placeholder asset."""
     storage = StorageService()
-    
+    sample_path = Path(video_path)
+    if not sample_path.exists():
+        print(f"Video file not found: {sample_path}")
+        return None
+
     try:
-        # Process video
-        processed = processor.process_video(video_path)
-        
-        # Upload to storage
-        video_url = storage.upload_file(
-            processed['output_path'],
-            f"videos/{channel.id}/{processed['video_id']}.mp4",
-            content_type="video/mp4"
-        )
-        thumbnail_url = storage.upload_file(
-            processed['thumbnail_path'],
-            f"thumbnails/{channel.id}/{processed['video_id']}.jpg",
-            content_type="image/jpeg"
-        )
-        
-        # Create video record
+        video_url = storage.upload_file(str(sample_path), f"videos/{channel.id}/{sample_path.stem}.mp4")
+        thumbnail_url = storage.upload_file(str(sample_path), f"thumbnails/{channel.id}/{sample_path.stem}.jpg")
+
         video = Video(
             channel_id=channel.id,
             title=title,
             description=description,
             video_url=video_url,
             thumbnail_url=thumbnail_url,
-            duration=processed['metadata']['duration'],
-            width=processed['metadata']['width'],
-            height=processed['metadata']['height'],
-            file_size=processed['metadata']['file_size'],
+            duration=45,
+            width=1280,
+            height=720,
+            file_size=sample_path.stat().st_size,
             category=random.choice(['Education', 'Entertainment', 'Technology', 'Science']),
             tags=random.sample(['sample', 'demo', 'open-source'], 3),
             is_public=True,
@@ -94,12 +95,12 @@ def create_sample_video(session, channel, title, description, video_path):
         )
         session.add(video)
         session.commit()
-        
+
         print(f"✅ Created video: {title}")
         return video
-        
-    except Exception as e:
-        print(f"❌ Failed to create video: {e}")
+
+    except Exception as exc:
+        print(f"❌ Failed to create video: {exc}")
         session.rollback()
         return None
 
@@ -107,13 +108,12 @@ def main():
     """Main script to populate videos"""
     session = SessionLocal()
     
-    # Sample video directory
-    sample_dir = os.path.join(os.path.dirname(__file__), '..', 'sample_videos')
-    os.makedirs(sample_dir, exist_ok=True)
-    
+    sample_dir = Path(__file__).resolve().parent.parent / "sample_videos"
+    ensure_sample_media(sample_dir)
+
     print("📹 OpenStream Video Population Script")
     print("=" * 40)
-    print(f"Place sample video files in: {sample_dir}")
+    print(f"Using sample asset folder: {sample_dir}")
     print("Supported formats: .mp4, .mov, .avi")
     print("")
     
@@ -148,23 +148,14 @@ def main():
         }
     ]
     
-    # Create videos (if files exist)
     for idx, data in enumerate(sample_data):
-        video_path = os.path.join(sample_dir, data['file'])
+        video_path = sample_dir / data['file']
         channel = channels[idx % len(channels)]
-        
-        create_sample_video(
-            session,
-            channel,
-            data['title'],
-            data['description'],
-            video_path
-        )
+        create_sample_video(session, channel, data['title'], data['description'], str(video_path))
     
     print("")
     print("✅ Population complete!")
-    print("If no videos were created, ensure you have sample files in the sample_videos/ directory.")
-    print("You can also manually upload videos through the web interface.")
+    print("Open the feed to see the new sample videos.")
     
     session.close()
 

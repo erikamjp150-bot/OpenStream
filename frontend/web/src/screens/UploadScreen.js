@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 function UploadScreen() {
   const [title, setTitle] = useState('');
@@ -16,7 +16,7 @@ function UploadScreen() {
     formData.append('video_file', fileInput.files[0]);
 
     try {
-      await axios.post('http://localhost:8000/videos/upload', formData, {
+      await api.post('/videos/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setStatus('Upload complete');

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 function ChannelScreen() {
   const { id } = useParams();
   const [channel, setChannel] = useState(null);
 
   useEffect(() => {
-    axios.get(`http://localhost:8000/channels/${id}`).then((response) => {
+    api.get(`/channels/${id}`).then((response) => {
       setChannel(response.data);
     }).catch(() => setChannel(null));
   }, [id]);

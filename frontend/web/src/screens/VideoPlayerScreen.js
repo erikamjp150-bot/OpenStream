@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import CommentSection from '../components/CommentSection';
 
 function VideoPlayerScreen() {
@@ -8,7 +8,7 @@ function VideoPlayerScreen() {
   const [video, setVideo] = useState(null);
 
   useEffect(() => {
-    axios.get(`http://localhost:8000/videos/${id}`).then((response) => {
+    api.get(`/videos/${id}`).then((response) => {
       setVideo(response.data);
     }).catch(() => setVideo(null));
   }, [id]);

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 function FeedScreen() {
   const [videos, setVideos] = useState([]);
 
   useEffect(() => {
-    axios.get('http://localhost:8000/feed/feed').then((response) => {
+    api.get('/feed/feed').then((response) => {
       setVideos(response.data.results || []);
     }).catch(() => {
       setVideos([]);

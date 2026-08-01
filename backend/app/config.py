@@ -7,7 +7,7 @@ except ImportError:  # pragma: no cover - fallback for local/dev installs
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite:///./openstream.db"
+    DATABASE_URL: str = "sqlite:////workspaces/OpenStream/openstream.db"
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     STORAGE_BACKEND: str = "local"
     STORAGE_BASE_URL: str = "http://localhost:9000/openstream"
