@@ -1,5 +1,10 @@
-from pydantic_settings import BaseSettings
 from typing import List
+
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:  # pragma: no cover - fallback for local/dev installs
+    from pydantic import BaseSettings
+
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./openstream.db"
@@ -13,5 +18,6 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
 
 settings = Settings()

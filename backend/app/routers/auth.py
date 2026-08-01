@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, Channel
-from ..schemas import UserCreate, Token, UserResponse
+from ..schemas import UserCreate, LoginRequest, Token, UserResponse
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
@@ -38,9 +38,9 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-async def login(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if not db_user or not pwd_context.verify(user.password, db_user.hashed_password):
+async def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == payload.email).first()
+    if not db_user or not pwd_context.verify(payload.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token(str(db_user.id))
     return {"access_token": token, "token_type": "bearer"}

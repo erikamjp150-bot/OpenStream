@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, videos, channels, playlists, subscriptions, feed, admin
+from .routers import auth, videos, channels, playlists, subscriptions, feed, admin, recommendations
 from .database import engine
 from . import models
 from .config import settings
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="OpenStream API",
     description="An open-source, transparent alternative to YouTube",
-    version="0.1.0"
+    version="0.1.0",
 )
 
 # Configure CORS
@@ -35,6 +35,8 @@ app.include_router(playlists.router, prefix="/playlists", tags=["playlists"])
 app.include_router(subscriptions.router, prefix="/subscriptions", tags=["subscriptions"])
 app.include_router(feed.router, prefix="/feed", tags=["feed"])
 app.include_router(admin.router, prefix="/admin", tags=["administration"])
+app.include_router(recommendations.router, prefix="/recommendations", tags=["recommendations"])
+
 
 @app.get("/health")
 async def health_check():
