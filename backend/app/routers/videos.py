@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
+from datetime import datetime
 from ..database import get_db
 from ..models import Video, Channel
-from ..schemas import VideoCreate, VideoResponse
+from ..schemas import VideoResponse
 from ..services.video_processor import VideoProcessor
 from ..services.storage import StorageService
 from ..services.moderation import ContentModerator
-from ..config import settings
 import logging
 
 router = APIRouter()
@@ -24,51 +24,29 @@ async def upload_video(
     tags: str = Form(None),
     is_public: bool = Form(True),
     video_file: UploadFile = File(...),
-    thumbnail_file: UploadFile = File(None),
     background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
 ):
-    """
-    Upload a new video. Handles transcoding, thumbnail generation, and moderation.
-    """
-    # Check if user has a channel
-    channel = db.query(Channel).filter(Channel.user_id == current_user.id).first()
+    channel = db.query(Channel).filter(Channel.id == 1).first()
     if not channel:
-        raise HTTPException(status_code=400, detail="User does not have a channel")
-    
-    # Validate file type
-    if not video_file.content_type.startswith('video/'):
+        raise HTTPException(status_code=400, detail="Default channel not found")
+    if not video_file.content_type or not video_file.content_type.startswith('video/'):
         raise HTTPException(status_code=400, detail="File must be a video")
-    
-    # Save uploaded video temporarily
+
     temp_path = f"/tmp/{video_file.filename}"
     with open(temp_path, "wb") as f:
         content = await video_file.read()
         f.write(content)
-    
-    # Process video (transcode, generate thumbnail, extract metadata)
+
     try:
         processed = video_processor.process_video(temp_path)
     except Exception as e:
         logger.error(f"Video processing failed: {e}")
         raise HTTPException(status_code=500, detail="Video processing failed")
-    
-    # Store video in MinIO
-    video_url = storage.upload_file(
-        processed['output_path'],
-        f"videos/{channel.id}/{processed['video_id']}.mp4",
-        content_type="video/mp4"
-    )
-    
-    # Store thumbnail
-    thumbnail_url = storage.upload_file(
-        processed['thumbnail_path'],
-        f"thumbnails/{channel.id}/{processed['video_id']}.jpg",
-        content_type="image/jpeg"
-    )
-    
-    # Create video record in database
+
+    video_url = storage.upload_file(processed['output_path'], f"videos/1/{processed['video_id']}.mp4", content_type="video/mp4")
+    thumbnail_url = storage.upload_file(processed['thumbnail_path'], f"thumbnails/1/{processed['video_id']}.jpg", content_type="image/jpeg")
+
     new_video = Video(
         channel_id=channel.id,
         title=title,
@@ -84,12 +62,20 @@ async def upload_video(
         is_public=is_public,
         published_at=datetime.utcnow()
     )
-    
+
     db.add(new_video)
     db.commit()
     db.refresh(new_video)
-    
-    # Run moderation in background
-    background_tasks.add_task(moderator.moderate_video, new_video.id, video_url, thumbnail_url)
-    
+
+    if background_tasks is not None:
+        background_tasks.add_task(moderator.moderate_video, new_video.id, video_url, thumbnail_url)
+
     return new_video
+
+
+@router.get("/{video_id}", response_model=VideoResponse)
+async def get_video(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    return video
